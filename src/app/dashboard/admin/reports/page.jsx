@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -26,8 +27,6 @@ export default function AdminReportsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [selectedReport, setSelectedReport] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -85,9 +84,6 @@ export default function AdminReportsPage() {
           rejectionReason: newStatus === 'REJECTED' ? reason : r.rejectionReason
         } : r)
       );
-      if (selectedReport?.id === id) {
-        setSelectedReport(prev => ({ ...prev, status: newStatus, rejectionReason: newStatus === 'REJECTED' ? reason : prev.rejectionReason }));
-      }
       return true;
     } catch (error) {
       alert('Gagal mengupdate status');
@@ -95,18 +91,14 @@ export default function AdminReportsPage() {
     }
   };
 
-  // Handle perubahan dropdown di tabel
   const handleStatusChange = (reportId, newStatus) => {
     if (newStatus === 'REJECTED') {
-      // Buka modal alasan penolakan
       setRejectReportId(reportId);
       setRejectionReason('');
       setRejectModalOpen(true);
     } else if (newStatus === 'APPROVED') {
-      // Langsung setujui
       updateStatus(reportId, 'APPROVED');
     }
-    // Untuk PENDING tidak perlu action
   };
 
   const handleRejectConfirm = async () => {
@@ -127,15 +119,9 @@ export default function AdminReportsPage() {
     try {
       await apiFetch(`/reports/${id}`, { method: 'DELETE' });
       setReports(prev => prev.filter(r => r.id !== id));
-      if (selectedReport?.id === id) setIsModalOpen(false);
     } catch (error) {
       alert('Gagal menghapus laporan');
     }
-  };
-
-  const openDetail = (report) => {
-    setSelectedReport(report);
-    setIsModalOpen(true);
   };
 
   const getStatusBadge = (status) => {
@@ -147,7 +133,6 @@ export default function AdminReportsPage() {
     }
   };
 
-  // Pagination
   const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
   const paginatedReports = filteredReports.slice(
     (currentPage - 1) * itemsPerPage,
@@ -251,13 +236,14 @@ export default function AdminReportsPage() {
                             </td>
                             <td className="p-4 text-center">
                               <div className="flex justify-center gap-2">
-                                <button
-                                  onClick={() => openDetail(report)}
+                                {/* 👁️ Tombol mata → halaman detail */}
+                                <Link
+                                  href={`/dashboard/admin/reports/${report.id}`}
                                   className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                                   title="Detail"
                                 >
                                   <Eye size={16} />
-                                </button>
+                                </Link>
                                 <select
                                   value={report.status}
                                   onChange={(e) => handleStatusChange(report.id, e.target.value)}
@@ -275,8 +261,8 @@ export default function AdminReportsPage() {
                                   <Trash2 size={16} />
                                 </button>
                               </div>
-                             </td>
-                           </tr>
+                            </td>
+                          </tr>
                         );
                       })}
                     </tbody>
@@ -309,72 +295,6 @@ export default function AdminReportsPage() {
             )}
           </div>
         </div>
-
-        {/* Detail Modal */}
-        {isModalOpen && selectedReport && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setIsModalOpen(false)}>
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-800">Detail Laporan</h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
-              </div>
-              <div className="p-6 space-y-4">
-                <div><span className="text-gray-500 text-sm">ID:</span> <span className="font-mono">#{selectedReport.id}</span></div>
-                <div><span className="text-gray-500 text-sm">Judul:</span> <p className="font-semibold">{selectedReport.title}</p></div>
-                <div><span className="text-gray-500 text-sm">Pelapor:</span> <p>{selectedReport.user_name}</p></div>
-                <div><span className="text-gray-500 text-sm">Kategori:</span> <p>{selectedReport.category_name}</p></div>
-                <div><span className="text-gray-500 text-sm">Status:</span> 
-                  <span className={`ml-2 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getStatusBadge(selectedReport.status).color}`}>
-                    {getStatusBadge(selectedReport.status).text}
-                  </span>
-                </div>
-                <div><span className="text-gray-500 text-sm">Deskripsi:</span> 
-                  <p className="mt-1 text-gray-700 whitespace-pre-wrap">{selectedReport.description}</p>
-                </div>
-                {selectedReport.status === 'REJECTED' && selectedReport.rejectionReason && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-red-700 font-semibold text-sm">
-                      <MessageCircle size={16} />
-                      Alasan Penolakan:
-                    </div>
-                    <p className="mt-1 text-red-800 text-sm">{selectedReport.rejectionReason}</p>
-                  </div>
-                )}
-                {selectedReport.image && (
-                  <div><span className="text-gray-500 text-sm">Gambar:</span>
-                    <img src={`http://localhost:5000/${selectedReport.image}`} alt="lampiran" className="mt-2 rounded-lg max-h-60 object-cover" />
-                  </div>
-                )}
-                {selectedReport.comments && selectedReport.comments.length > 0 && (
-                  <div><span className="text-gray-500 text-sm">Komentar:</span>
-                    <div className="mt-2 space-y-2 bg-gray-50 p-3 rounded-lg">
-                      {selectedReport.comments.map(c => (
-                        <div key={c.id} className="text-sm border-b border-gray-200 pb-2">
-                          <span className="font-semibold">{c.user_name}</span>: {c.content}
-                          <div className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleString()}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="border-t border-gray-100 px-6 py-4 flex justify-end gap-3">
-                <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Tutup</button>
-                {selectedReport.status !== 'APPROVED' && selectedReport.status !== 'REJECTED' && (
-                  <>
-                    <button onClick={() => updateStatus(selectedReport.id, 'APPROVED')} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Setujui</button>
-                    <button onClick={() => {
-                      setRejectReportId(selectedReport.id);
-                      setRejectionReason('');
-                      setRejectModalOpen(true);
-                      setIsModalOpen(false); // Tutup modal detail sementara saat input alasan
-                    }} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Tolak</button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Modal Input Alasan Penolakan */}
         {rejectModalOpen && (

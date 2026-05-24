@@ -1,4 +1,4 @@
-// src/app/dashboard/user/reports/success/page.jsx
+// src/app/dashboard/user/reports/succeed/page.jsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -11,7 +11,7 @@ import {
   CheckCircle, FileText, Home, PlusCircle, Share2, Copy, 
   Calendar, AlertCircle, Printer, Download, Mail, 
   Hash, Clock 
-} from 'lucide-react';// ← Hapus Facebook & Twitter
+} from 'lucide-react';
 
 export default function ReportSuccessPage() {
   const searchParams = useSearchParams();
@@ -25,11 +25,16 @@ export default function ReportSuccessPage() {
 
   useEffect(() => {
     if (!reportId) {
-      router.push('/dashboard/users/reports/new');
+      // Jika tidak ada ID, redirect ke daftar laporan
+      router.push('/dashboard/users/reports');
       return;
     }
     apiFetch(`/reports/${reportId}`)
-      .then(data => setReport(data))
+      .then(data => {
+        // Sesuaikan dengan struktur response backend
+        const reportData = data.data || data;
+        setReport(reportData);
+      })
       .catch(err => {
         console.error(err);
         setError(err.message || 'Gagal memuat laporan');
@@ -48,7 +53,8 @@ export default function ReportSuccessPage() {
     }
   };
 
-  const getShareUrl = () => `${window.location.origin}/dashboard/user/reports/succees`;
+  // Perbaiki typo: succeed bukan succees
+  const getShareUrl = () => `${window.location.origin}/dashboard/user/reports/succeed?id=${report?.id || reportId}`;
   const shareText = `Saya baru saja membuat laporan: ${report?.title || ''}. Lihat detailnya di sini:`;
 
   const handlePrint = () => window.print();
@@ -186,7 +192,7 @@ export default function ReportSuccessPage() {
                 </button>
               </div>
 
-              {/* Bagikan & Salin Link - tanpa Facebook & Twitter, gunakan Share2 sebagai pengganti */}
+              {/* Bagikan & Salin Link */}
               <div className="border-t border-gray-100 pt-5">
                 <p className="text-xs text-gray-500 mb-3 text-center">Bagikan laporan ini (hanya bisa diakses oleh Anda & admin)</p>
                 
@@ -204,7 +210,6 @@ export default function ReportSuccessPage() {
                     <Mail size={14} /> Email
                   </a>
                   
-                  {/* Tombol bagikan ke Facebook & Twitter menggunakan Share2 */}
                   <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl())}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-700 transition bg-gray-100 px-3 py-1.5 rounded-full">
                     <Share2 size={14} /> Facebook
                   </a>

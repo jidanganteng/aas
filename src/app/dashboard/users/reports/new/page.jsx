@@ -138,11 +138,11 @@ export default function NewReportPage() {
     setHasUnsavedChanges(true);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess(false);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError('');
+  setSuccess(false);
 
     // Validasi
     const titleTrim = form.title.trim();
@@ -178,40 +178,47 @@ export default function NewReportPage() {
       return;
     }
 
-    try {
-      const formData = new FormData();
-      formData.append('title', titleTrim);
-      formData.append('description', descriptionTrim);
-      formData.append('categoryId', form.categoryId);
-      // Tambahkan semua gambar
-      images.forEach(img => {
-        formData.append('images', img.file);
-      });
+     try {
+    const formData = new FormData();
+    formData.append('title', titleTrim);
+    formData.append('description', descriptionTrim);
+    formData.append('categoryId', form.categoryId);
+    images.forEach(img => {
+      formData.append('images', img.file);
+    });
 
-      const response = await apiFetch('/reports', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      setSuccess(true);
-      setHasUnsavedChanges(false);
-      
-      setTimeout(() => {
-        router.push(`/dashboard/users/reports/succeed`);
-      }, 1500);
-    } catch (err) {
-      setError(err.message || 'Gagal mengirim laporan');
-      setLoading(false);
-    }
-  };
+    const response = await apiFetch('/reports', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    // Ambil ID laporan dari response
+    const reportId = response.data?.id || response.id;
+    
+    setSuccess(true);
+    setHasUnsavedChanges(false);
+    
+    setTimeout(() => {
+      if (reportId) {
+        router.push(`/dashboard/users/reports/success`);
+      } else {
+        // fallback ke daftar laporan jika tidak ada ID
+        router.push('/dashboard/users/reports');
+      }
+    }, 1500);
+  } catch (err) {
+    setError(err.message || 'Gagal mengirim laporan');
+    setLoading(false);
+  }
+};
 
   const handleCancel = () => {
     if (hasUnsavedChanges) {
       if (confirm('Anda memiliki perubahan yang belum disimpan. Yakin ingin membatalkan?')) {
-        router.push('/dashboard/user');
+        router.push('/dashboard/users');
       }
     } else {
-      router.push('/dashboard/user');
+      router.push('/dashboard/users');
     }
   };
 
@@ -220,7 +227,7 @@ export default function NewReportPage() {
       <DashboardLayout>
         <div className="max-w-3xl mx-auto px-4 sm:px-0 font-sans">
           <div className="mb-6 flex items-center gap-2 text-sm text-gray-500">
-            <Link href="/dashboard/user" className="hover:text-blue-600 transition">Dashboard</Link>
+            <Link href="/dashboard/users" className="hover:text-blue-600 transition">Dashboard</Link>
             <span>›</span>
             <span className="text-gray-800 font-medium">Buat Laporan Baru</span>
           </div>
