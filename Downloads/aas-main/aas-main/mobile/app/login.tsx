@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BASE_URL } from '../src/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -68,7 +69,7 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://10.2.10.245:5000/api/auth/login', {
+      const response = await fetch(`${BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password: password.trim() }),
@@ -89,8 +90,10 @@ export default function LoginScreen() {
 
       await AsyncStorage.setItem('token', data.token);
       await AsyncStorage.setItem('userRole', data.user.role);
+      await AsyncStorage.setItem('userName', data.user.name);
+      await AsyncStorage.setItem('userId', String(data.user.id));
 
-      Alert.alert('Sukses', `Selamat datang ${data.user.name}`);
+      Alert.alert('Sukses', `Selamat datang ${data.user.name}!`);
       router.replace('/screens/HomeScreen');
     } catch (error: any) {
       console.log('LOGIN ERROR:', error);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
   ScrollView, Image, ActivityIndicator, Platform,
@@ -6,27 +6,47 @@ import {
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { BASE_URL } from '../../src/api/index';
 
-const CATEGORIES = [
-  { id: 'infrastruktur', label: 'Infrastruktur', icon: '🏗️' },
-  { id: 'kebersihan', label: 'Kebersihan', icon: '🧹' },
-  { id: 'keamanan', label: 'Keamanan', icon: '🛡️' },
-  { id: 'kesehatan', label: 'Kesehatan', icon: '🏥' },
-  { id: 'pendidikan', label: 'Pendidikan', icon: '📚' },
-  { id: 'lainnya', label: 'Lainnya', icon: '📋' },
-];
+const CATEGORY_ICONS: Record<string, string> = {
+  infrastruktur: '🏗️',
+  kebersihan:    '🧹',
+  keamanan:      '🛡️',
+  kesehatan:     '🏥',
+  pendidikan:    '📚',
+  lainnya:       '📋',
+};
 
-// ========== GANTI DENGAN IP HASIL IPCONFIG ==========
-const API_BASE_URL = 'http:/10.2.10.245:5000'; // <-- GANTI INI!
-// ===================================================
+interface Category { id: number; name: string; }
 
 export default function AddReportScreen() {
   const router = useRouter();
-  const [title, setTitle] = useState('');
+  const [title, setTitle]             = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [images, setImages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [categoryId, setCategoryId]   = useState<number | null>(null);
+  const [categories, setCategories]   = useState<Category[]>([]);
+  const [images, setImages]           = useState<string[]>([]);
+  const [loading, setLoading]         = useState(false);
+  const [loadingCat, setLoadingCat]   = useState(true);
+
+  // ── Ambil kategori dari backend ──────────────────────────────────────────
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const res = await fetch(`${BASE_URL}/api/categories`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setCategories(Array.isArray(data) ? data : []);
+      } catch {
+        Alert.alert('Peringatan', 'Gagal memuat kategori dari server');
+      } finally {
+        setLoadingCat(false);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const pickImage = async () => {
     if (images.length >= 3) {
@@ -53,19 +73,19 @@ export default function AddReportScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim()) return Alert.alert('Perhatian', 'Judul wajib diisi');
+    if (!title.trim())       return Alert.alert('Perhatian', 'Judul wajib diisi');
     if (!description.trim()) return Alert.alert('Perhatian', 'Deskripsi wajib diisi');
-    if (!category) return Alert.alert('Perhatian', 'Pilih kategori');
+    if (!categoryId)         return Alert.alert('Perhatian', 'Pilih kategori terlebih dahulu');
 
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
-      if (!token) throw new Error('Token tidak ditemukan');
+      if (!token) throw new Error('Sesi habis, silakan login ulang');
 
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('description', description.trim());
-      formData.append('category', category);
+      formData.append('categoryId', String(categoryId));
 
       images.forEach((uri, index) => {
         const filename = uri.split('/').pop() || `photo_${index}.jpg`;
@@ -75,28 +95,29 @@ export default function AddReportScreen() {
         formData.append('images', { uri, name: filename, type });
       });
 
-      const response = await fetch(`${API_BASE_URL}/api/reports`, {
+      const response = await fetch(`${BASE_URL}/api/reports`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
       if (response.ok) {
-        Alert.alert('Berhasil', 'Laporan terkirim', [
+        Alert.alert('Berhasil! ✅', 'Laporan berhasil dikirim', [
           { text: 'OK', onPress: () => router.back() }
         ]);
       } else {
-        const errorText = await response.text();
-        Alert.alert('Gagal', errorText || 'Server error');
+        const err = await response.json().catch(() => ({}));
+        Alert.alert('Gagal', err.message || `Server error (${response.status})`);
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message === 'Network request failed' 
-        ? 'Cek koneksi ke server' 
+      Alert.alert('Error', error.message === 'Network request failed'
+        ? 'Tidak dapat terhubung ke server. Cek IP dan koneksi WiFi.'
         : error.message);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <ScrollView style={styles.container}>
@@ -107,20 +128,26 @@ export default function AddReportScreen() {
 
       <View style={styles.section}>
         <Text style={styles.label}>Kategori *</Text>
-        <View style={styles.categoryGrid}>
-          {CATEGORIES.map(cat => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[styles.categoryItem, category === cat.id && styles.categoryItemActive]}
-              onPress={() => setCategory(cat.id)}
-            >
-              <Text style={styles.categoryIcon}>{cat.icon}</Text>
-              <Text style={[styles.categoryLabel, category === cat.id && styles.categoryLabelActive]}>
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {loadingCat ? (
+          <ActivityIndicator color="#4F46E5" style={{ marginVertical: 12 }} />
+        ) : (
+          <View style={styles.categoryGrid}>
+            {categories.map(cat => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.categoryItem, categoryId === cat.id && styles.categoryItemActive]}
+                onPress={() => setCategoryId(cat.id)}
+              >
+                <Text style={styles.categoryIcon}>
+                  {CATEGORY_ICONS[cat.name.toLowerCase()] || '📋'}
+                </Text>
+                <Text style={[styles.categoryLabel, categoryId === cat.id && styles.categoryLabelActive]}>
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
       <View style={styles.section}>

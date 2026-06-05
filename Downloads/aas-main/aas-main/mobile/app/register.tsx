@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BASE_URL } from '../src/api';
 
 const { width } = Dimensions.get('window');
 
@@ -72,7 +73,7 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      const response = await fetch('http://10.2.10.245:5000/api/auth/register', {
+      const response = await fetch(`${BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
@@ -88,7 +89,9 @@ export default function RegisterScreen() {
       if (response.ok) {
         await AsyncStorage.setItem('token', data.token);
         await AsyncStorage.setItem('userRole', data.user.role);
-        Alert.alert('Sukses', 'Pendaftaran berhasil!');
+        await AsyncStorage.setItem('userName', data.user.name);
+        await AsyncStorage.setItem('userId', String(data.user.id));
+        Alert.alert('Sukses', 'Pendaftaran berhasil! Silakan login.');
         router.replace('/login');
       } else {
         Alert.alert('Gagal', data.message || 'Terjadi kesalahan');
