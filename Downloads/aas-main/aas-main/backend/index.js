@@ -22,9 +22,9 @@ const profileRoutes = require('./src/routes/profileRoutes'); // ← perbaiki pat
 // MIDDLEWARE
 // =======================
 
-// CORS
+// CORS — izinkan Next.js frontend dan React Native mobile
 app.use(cors({
-    origin: 'http://localhost:3000', // frontend next js
+    origin: true, // allow semua origin (termasuk Expo mobile)
     credentials: true
 }));
 
